@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApplicationForm as ApplicationFormType, ApplicationType, FuelType } from '../types/application';
 import { createApplication, getDistance } from '../api/applications';
 import { useAuth } from '../contexts/AuthContext';
+import { Card } from '@mantine/core';
 
 /** 현재 월 기준 신청 분기 계산. 신청 기간이 아니면 null 반환 */
 function getCurrentQuarter(): string | null {
@@ -117,18 +118,18 @@ export default function ApplicationForm() {
   if (!currentQuarter) {
     return (
       <div className="page-container">
-        <div className="form-card">
+        <Card shadow="sm" padding="xl" radius="md" withBorder style={{ maxWidth: 640, margin: '0 auto' }}>
           <h1 className="form-title">주차권 신청</h1>
           <p className="form-subtitle">현재는 주차권 신청 기간이 아닙니다.</p>
           <p className="field-hint">주차권 신청은 3월, 6월, 9월, 12월에만 가능합니다.</p>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="page-container">
-      <div className="form-card">
+      <Card shadow="sm" padding="xl" radius="md" withBorder style={{ maxWidth: 640, margin: '0 auto' }}>
         <h1 className="form-title">주차권 신청</h1>
         <p className="form-subtitle">Gabia @ 주차권 신청 양식입니다.</p>
 
@@ -310,7 +311,7 @@ export default function ApplicationForm() {
             {submitMutation.isPending ? '제출 중...' : '신청하기'}
           </button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }
