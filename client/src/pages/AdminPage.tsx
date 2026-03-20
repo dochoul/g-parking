@@ -1,48 +1,40 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { Application, Quarter } from '../types/application';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getApplications, getQuarters, deleteApplication, exportExcel } from '../api/applications';
 
 export default function AdminPage() {
-  const [quarters, setQuarters] = useState<Quarter[]>([]);
+  const queryClient = useQueryClient();
   const [selectedQuarter, setSelectedQuarter] = useState<string>('');
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getQuarters().then((data) => {
-      setQuarters(data);
-      const active = data.find((q) => q.isActive);
-      if (active) {
-        setSelectedQuarter(active.name);
+  const { data: quarters = [] } = useQuery({
+    queryKey: ['quarters'],
+    queryFn: getQuarters,
+    select: (data) => {
+      // 첫 로드 시 활성 분기 자동 선택
+      if (!selectedQuarter) {
+        const active = data.find((q) => q.isActive);
+        if (active) setTimeout(() => setSelectedQuarter(active.name), 0);
       }
-    });
-  }, []);
+      return data;
+    },
+  });
 
-  const fetchApplications = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getApplications(selectedQuarter || undefined);
-      setApplications(data);
-    } catch {
-      alert('신청 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedQuarter]);
+  const { data: applications = [], isLoading } = useQuery({
+    queryKey: ['applications', selectedQuarter],
+    queryFn: () => getApplications(selectedQuarter || undefined),
+  });
 
-  useEffect(() => {
-    fetchApplications();
-  }, [fetchApplications]);
+  const deleteMutation = useMutation({
+    mutationFn: deleteApplication,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+    },
+    onError: () => alert('삭제에 실패했습니다.'),
+  });
 
-  async function handleDelete(id: number) {
+  function handleDelete(id: number) {
     if (!window.confirm('정말 삭제하시겠습니까?')) return;
-
-    try {
-      await deleteApplication(id);
-      setApplications((prev) => prev.filter((app) => app.id !== id));
-    } catch {
-      alert('삭제에 실패했습니다.');
-    }
+    deleteMutation.mutate(id);
   }
 
   async function handleExport() {
@@ -84,7 +76,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className="loading">불러오는 중...</div>
         ) : applications.length === 0 ? (
           <div className="empty-state">신청 내역이 없습니다.</div>

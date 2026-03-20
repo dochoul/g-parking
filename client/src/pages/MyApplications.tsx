@@ -1,39 +1,26 @@
-import { useState, useEffect } from 'react';
-import type { Application, MeInfo } from '../types/application';
-import { getApplications, getMeInfo } from '../api/applications';
+import { useQuery } from '@tanstack/react-query';
+import { getApplications } from '../api/applications';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function MyApplications() {
-  const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { accountInfo } = useAuth();
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const info = await getMeInfo();
-        setMeInfo(info);
-        const all = await getApplications();
-        setApplications(all.filter((app) => app.name === info.name));
-      } catch {
-        alert(
-          '하이웍스에 로그인되어 있지 않습니다.\n' +
-          'office.hiworks.com에 먼저 로그인해주세요.'
-        );
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const { data: applications = [], isLoading } = useQuery({
+    queryKey: ['applications'],
+    queryFn: () => getApplications(),
+    select: (all) => all.filter((app) => app.name === accountInfo?.name),
+    enabled: !!accountInfo,
+  });
 
   return (
     <div className="page-container">
       <div className="admin-card">
         <h1 className="form-title">내 신청 내역</h1>
         <p className="form-subtitle">
-          {meInfo ? `${meInfo.name}님의 주차권 신청 내역입니다.` : '로그인 정보를 확인 중입니다.'}
+          {accountInfo ? `${accountInfo.name}님의 주차권 신청 내역입니다.` : '로그인 정보를 확인 중입니다.'}
         </p>
 
-        {loading ? (
+        {isLoading ? (
           <div className="loading">불러오는 중...</div>
         ) : applications.length === 0 ? (
           <div className="empty-state">신청 내역이 없습니다.</div>

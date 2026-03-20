@@ -12,6 +12,7 @@ const api = axios.create({
  */
 const cacheApi = axios.create({
   baseURL: '/hiworks-api',
+  withCredentials: true,
 });
 
 export async function getApplications(quarter?: string): Promise<Application[]> {
@@ -70,6 +71,7 @@ export async function getMeInfo(): Promise<MeInfo> {
  */
 const accountApi = axios.create({
   baseURL: '/account-api',
+  withCredentials: true,
 });
 
 export async function getDistance(address: string): Promise<number> {

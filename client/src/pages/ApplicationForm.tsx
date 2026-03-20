@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ApplicationForm as ApplicationFormType, ApplicationType, FuelType, MeInfo } from '../types/application';
-import { createApplication, getMeInfo, getAccountMeInfo, getDistance } from '../api/applications';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { ApplicationForm as ApplicationFormType, ApplicationType, FuelType } from '../types/application';
+import { createApplication, getDistance } from '../api/applications';
+import { useAuth } from '../contexts/AuthContext';
 
 /** 현재 월 기준 신청 분기 계산. 신청 기간이 아니면 null 반환 */
 function getCurrentQuarter(): string | null {
@@ -21,12 +23,23 @@ function getCurrentQuarter(): string | null {
 
 export default function ApplicationForm() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { accountInfo } = useAuth();
   const currentQuarter = getCurrentQuarter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+
+  const submitMutation = useMutation({
+    mutationFn: (data: ApplicationFormType) => createApplication({ ...data, vehicleType: data.fuelType }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      alert('주차권 신청이 완료되었습니다.');
+      navigate('/my');
+    },
+    onError: () => {
+      alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
+    },
+  });
 
   const [form, setForm] = useState<ApplicationFormType>({
     quarter: currentQuarter || '',
@@ -42,52 +55,29 @@ export default function ApplicationForm() {
     privacyAgreed: false,
   });
 
-  // 페이지 로드 시 하이웍스 로그인 상태 자동 확인
+  // accountInfo가 로드되면 이름/부서/주소/연락처 설정
   useEffect(() => {
-    getMeInfo()
-      .then((info) => {
-        setMeInfo(info);
-        setForm((prev) => ({
-          ...prev,
-          name: info.name || prev.name,
-        }));
-      })
-      .catch(() => {
-        alert(
-          '하이웍스에 로그인되어 있지 않습니다.\n' +
-          'office.hiworks.com에 먼저 로그인해주세요.'
-        );
-      })
-      .finally(() => {
-        setIsLoadingUser(false);
-      });
-
-    // account-api에서 부서/주소/연락처 가져오기
-    getAccountMeInfo()
-      .then((accountInfo) => {
-        setForm((prev) => ({
-          ...prev,
-          ...(accountInfo.nodes?.length > 0 && {
-            department: accountInfo.nodes[0].full_name.split('|').join(' → '),
-          }),
-          ...(accountInfo.address && { address: accountInfo.address }),
-          ...(accountInfo.cell && { contact: accountInfo.cell }),
-        }));
-        // 주소가 있으면 거리 자동 계산
-        if (accountInfo.address) {
-          setIsCalculatingDistance(true);
-          getDistance(accountInfo.address)
-            .then((km) => {
-              setForm((prev) => ({ ...prev, distanceKm: km }));
-            })
-            .catch(() => {})
-            .finally(() => setIsCalculatingDistance(false));
-        }
-      })
-      .catch(() => {
-        // 부서 정보를 가져오지 못해도 수동 입력 가능
-      });
-  }, []);
+    if (!accountInfo) return;
+    setForm((prev) => ({
+      ...prev,
+      name: accountInfo.name || prev.name,
+      ...(accountInfo.nodes?.length > 0 && {
+        department: accountInfo.nodes[0].full_name.split('|').join(' → '),
+      }),
+      ...(accountInfo.address && { address: accountInfo.address }),
+      ...(accountInfo.cell && { contact: accountInfo.cell }),
+    }));
+    // 주소가 있으면 거리 자동 계산
+    if (accountInfo.address) {
+      setIsCalculatingDistance(true);
+      getDistance(accountInfo.address)
+        .then((km) => {
+          setForm((prev) => ({ ...prev, distanceKm: km }));
+        })
+        .catch(() => {})
+        .finally(() => setIsCalculatingDistance(false));
+    }
+  }, [accountInfo]);
 
 
   function validate(): Record<string, string> {
@@ -105,23 +95,12 @@ export default function ApplicationForm() {
     return newErrors;
   }
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const validationErrors = validate();
     setErrors(validationErrors);
-
     if (Object.keys(validationErrors).length > 0) return;
-
-    setIsSubmitting(true);
-    try {
-      await createApplication({ ...form, vehicleType: form.fuelType });
-      alert('주차권 신청이 완료되었습니다.');
-      navigate('/my');
-    } catch {
-      alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    submitMutation.mutate(form);
   }
 
   function updateField<K extends keyof ApplicationFormType>(key: K, value: ApplicationFormType[K]) {
@@ -152,28 +131,6 @@ export default function ApplicationForm() {
       <div className="form-card">
         <h1 className="form-title">주차권 신청</h1>
         <p className="form-subtitle">Gabia @ 주차권 신청 양식입니다.</p>
-
-        {/* 하이웍스 로그인 상태 */}
-        <div className="hiworks-login-section">
-          {isLoadingUser ? (
-            <p className="hiworks-hint">하이웍스 로그인 확인 중...</p>
-          ) : meInfo ? (
-            <div className="hiworks-user-info">
-              <span className="hiworks-badge">하이웍스 인증 완료</span>
-              <span>{meInfo.name}</span>
-            </div>
-          ) : (
-            <div className="hiworks-not-logged-in">
-              <p className="hiworks-warning">하이웍스에 로그인되어 있지 않습니다.</p>
-              <p className="hiworks-hint">
-                <a href="https://office.hiworks.com" target="_blank" rel="noopener noreferrer">
-                  하이웍스 로그인
-                </a>
-                {' '}후 이 페이지를 새로고침해주세요.
-              </p>
-            </div>
-          )}
-        </div>
 
         <form onSubmit={handleSubmit} noValidate>
           {/* 분기 */}
@@ -215,7 +172,7 @@ export default function ApplicationForm() {
               placeholder="성명을 입력해주세요"
               value={form.name}
               onChange={(e) => updateField('name', e.target.value)}
-              readOnly={!!meInfo?.name}
+              readOnly={!!accountInfo?.name}
             />
             {errors.name && <span className="error-text">{errors.name}</span>}
           </div>
@@ -349,8 +306,8 @@ export default function ApplicationForm() {
             </div>
           </div>
 
-          <button type="submit" className="submit-button" disabled={isSubmitting}>
-            {isSubmitting ? '제출 중...' : '신청하기'}
+          <button type="submit" className="submit-button" disabled={submitMutation.isPending}>
+            {submitMutation.isPending ? '제출 중...' : '신청하기'}
           </button>
         </form>
       </div>
