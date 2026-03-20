@@ -295,7 +295,7 @@ export default function ApplicationForm() {
           {/* 거리 */}
           <div className="form-group">
             <label className="form-label">거리 (km) <span className="required">*</span></label>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
               <input
                 type="number"
                 className={`form-input ${errors.distanceKm ? 'input-error' : ''}`}
@@ -308,7 +308,7 @@ export default function ApplicationForm() {
               <button
                 type="button"
                 className="submit-button"
-                style={{ whiteSpace: 'nowrap', padding: '0 16px', fontSize: '14px' }}
+                style={{ whiteSpace: 'nowrap', padding: '0 16px', fontSize: '14px', width: 'auto', margin: 0 }}
                 disabled={!form.address.trim() || isCalculatingDistance}
                 onClick={() => {
                   setIsCalculatingDistance(true);
