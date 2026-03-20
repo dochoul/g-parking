@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ApplicationForm as ApplicationFormType, ApplicationType, FuelType, MeInfo } from '../types/application';
 import { createApplication, getMeInfo, getAccountMeInfo, getDistance } from '../api/applications';
 
@@ -19,6 +20,7 @@ function getCurrentQuarter(): string | null {
 }
 
 export default function ApplicationForm() {
+  const navigate = useNavigate();
   const currentQuarter = getCurrentQuarter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -114,20 +116,7 @@ export default function ApplicationForm() {
     try {
       await createApplication({ ...form, vehicleType: form.fuelType });
       alert('주차권 신청이 완료되었습니다.');
-      setForm({
-        quarter: form.quarter,
-        applicationType: '정기',
-        name: form.name,
-        department: form.department,
-        contact: form.contact,
-        vehicleNumber: '',
-        vehicleType: '',
-        fuelType: '일반',
-        address: '',
-        distanceKm: 0,
-        privacyAgreed: false,
-      });
-      setErrors({});
+      navigate('/my');
     } catch {
       alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {

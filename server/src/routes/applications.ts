@@ -5,6 +5,26 @@ import { generateExcel } from '../services/excelService';
 
 const router = Router();
 
+/** DB row(snake_case) → API response(camelCase) 변환 */
+function toCamelCase(row: any) {
+  return {
+    id: row.id,
+    quarter: row.quarter,
+    applicationType: row.application_type,
+    name: row.name,
+    department: row.department,
+    contact: row.contact,
+    vehicleNumber: row.vehicle_number,
+    vehicleType: row.vehicle_type,
+    fuelType: row.fuel_type,
+    address: row.address,
+    distanceKm: row.distance_km,
+    privacyAgreed: !!row.privacy_agreed,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 // Validation rules for application submission (camelCase from client)
 const applicationValidation = [
   body('quarter').notEmpty().withMessage('분기를 선택해주세요.'),
@@ -78,7 +98,7 @@ router.post('/', applicationValidation, (req: Request, res: Response) => {
     );
 
     const application = db.prepare('SELECT * FROM applications WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(application);
+    res.status(201).json(toCamelCase(application));
   } catch (error) {
     console.error('Failed to create application:', error);
     res.status(500).json({ error: '신청서 저장에 실패했습니다.' });
@@ -97,7 +117,7 @@ router.get('/', (req: Request, res: Response) => {
     } else {
       applications = db.prepare('SELECT * FROM applications ORDER BY created_at DESC').all();
     }
-    res.json(applications);
+    res.json(applications.map(toCamelCase));
   } catch (error) {
     console.error('Failed to fetch applications:', error);
     res.status(500).json({ error: '목록 조회에 실패했습니다.' });
@@ -135,7 +155,7 @@ router.get('/:id', (req: Request, res: Response) => {
     if (!application) {
       return res.status(404).json({ error: '신청서를 찾을 수 없습니다.' });
     }
-    res.json(application);
+    res.json(toCamelCase(application));
   } catch (error) {
     console.error('Failed to fetch application:', error);
     res.status(500).json({ error: '상세 조회에 실패했습니다.' });
