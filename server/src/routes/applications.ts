@@ -5,19 +5,19 @@ import { generateExcel } from '../services/excelService';
 
 const router = Router();
 
-// Validation rules for application submission
+// Validation rules for application submission (camelCase from client)
 const applicationValidation = [
   body('quarter').notEmpty().withMessage('분기를 선택해주세요.'),
-  body('application_type').notEmpty().withMessage('신청구분을 선택해주세요.'),
+  body('applicationType').notEmpty().withMessage('신청구분을 선택해주세요.'),
   body('name').notEmpty().trim().withMessage('성명을 입력해주세요.'),
   body('department').notEmpty().trim().withMessage('부서명을 입력해주세요.'),
   body('contact').notEmpty().trim().withMessage('연락처를 입력해주세요.'),
-  body('vehicle_number').notEmpty().trim().withMessage('차량번호를 입력해주세요.'),
-  body('vehicle_type').notEmpty().trim().withMessage('차종을 입력해주세요.'),
-  body('fuel_type').notEmpty().trim().withMessage('연료구분을 선택해주세요.'),
+  body('vehicleNumber').notEmpty().trim().withMessage('차량번호를 입력해주세요.'),
+  body('vehicleType').notEmpty().trim().withMessage('차종을 입력해주세요.'),
+  body('fuelType').notEmpty().trim().withMessage('연료구분을 선택해주세요.'),
   body('address').notEmpty().trim().withMessage('주소를 입력해주세요.'),
-  body('distance_km').isFloat({ min: 0 }).withMessage('거리(km)를 올바르게 입력해주세요.'),
-  body('privacy_agreed').isBoolean().withMessage('개인정보 동의 여부를 선택해주세요.'),
+  body('distanceKm').isFloat({ min: 0 }).withMessage('거리(km)를 올바르게 입력해주세요.'),
+  body('privacyAgreed').isBoolean().withMessage('개인정보 동의 여부를 선택해주세요.'),
 ];
 
 // POST /api/applications - 신청서 제출
@@ -30,16 +30,16 @@ router.post('/', applicationValidation, (req: Request, res: Response) => {
   const db = getDatabase();
   const {
     quarter,
-    application_type,
+    applicationType,
     name,
     department,
     contact,
-    vehicle_number,
-    vehicle_type,
-    fuel_type,
+    vehicleNumber,
+    vehicleType,
+    fuelType,
     address,
-    distance_km,
-    privacy_agreed,
+    distanceKm,
+    privacyAgreed,
   } = req.body;
 
   try {
@@ -65,16 +65,16 @@ router.post('/', applicationValidation, (req: Request, res: Response) => {
 
     const result = stmt.run(
       quarter,
-      application_type,
+      applicationType,
       name,
       department,
       contact,
-      vehicle_number,
-      vehicle_type,
-      fuel_type,
+      vehicleNumber,
+      vehicleType,
+      fuelType,
       address,
-      distance_km,
-      privacy_agreed ? 1 : 0
+      distanceKm,
+      privacyAgreed ? 1 : 0
     );
 
     const application = db.prepare('SELECT * FROM applications WHERE id = ?').get(result.lastInsertRowid);
