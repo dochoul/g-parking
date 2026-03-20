@@ -43,6 +43,21 @@ router.post('/', applicationValidation, (req: Request, res: Response) => {
   } = req.body;
 
   try {
+    // 현재 월 기준 신청 가능 분기 검증
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    let expectedQuarter: string | null = null;
+    switch (month) {
+      case 12: expectedQuarter = `${year + 1}-Q1`; break;
+      case 3:  expectedQuarter = `${year}-Q2`; break;
+      case 6:  expectedQuarter = `${year}-Q3`; break;
+      case 9:  expectedQuarter = `${year}-Q4`; break;
+    }
+    if (!expectedQuarter || quarter !== expectedQuarter) {
+      return res.status(400).json({ error: '현재 신청 가능한 분기가 아닙니다.' });
+    }
+
     const stmt = db.prepare(`
       INSERT INTO applications (quarter, application_type, name, department, contact, vehicle_number, vehicle_type, fuel_type, address, distance_km, privacy_agreed)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

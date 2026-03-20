@@ -1,11 +1,25 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import type { ApplicationForm as ApplicationFormType, ApplicationType, FuelType, MeInfo } from '../types/application';
-import type { Quarter } from '../types/application';
-import { createApplication, getQuarters, getMeInfo, getAccountMeInfo, getDistance } from '../api/applications';
+import { createApplication, getMeInfo, getAccountMeInfo, getDistance } from '../api/applications';
+
+/** 현재 월 기준 신청 분기 계산. 신청 기간이 아니면 null 반환 */
+function getCurrentQuarter(): string | null {
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1~12
+  const year = now.getFullYear();
+
+  switch (month) {
+    case 12: return `${year + 1}-Q1`;
+    case 3:  return `${year}-Q2`;
+    case 6:  return `${year}-Q3`;
+    case 9:  return `${year}-Q4`;
+    default: return null;
+  }
+}
 
 export default function ApplicationForm() {
-  const [quarters, setQuarters] = useState<Quarter[]>([]);
+  const currentQuarter = getCurrentQuarter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [meInfo, setMeInfo] = useState<MeInfo | null>(null);
@@ -13,7 +27,7 @@ export default function ApplicationForm() {
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
 
   const [form, setForm] = useState<ApplicationFormType>({
-    quarter: '',
+    quarter: currentQuarter || '',
     applicationType: '정기',
     name: '',
     department: '',
@@ -73,15 +87,6 @@ export default function ApplicationForm() {
       });
   }, []);
 
-  useEffect(() => {
-    getQuarters().then((data) => {
-      setQuarters(data);
-      const active = data.find((q) => q.isActive);
-      if (active) {
-        setForm((prev) => ({ ...prev, quarter: active.name }));
-      }
-    });
-  }, []);
 
   function validate(): Record<string, string> {
     const newErrors: Record<string, string> = {};
@@ -141,6 +146,18 @@ export default function ApplicationForm() {
     }
   }
 
+  if (!currentQuarter) {
+    return (
+      <div className="page-container">
+        <div className="form-card">
+          <h1 className="form-title">주차권 신청</h1>
+          <p className="form-subtitle">현재는 주차권 신청 기간이 아닙니다.</p>
+          <p className="field-hint">주차권 신청은 3월, 6월, 9월, 12월에만 가능합니다.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
       <div className="form-card">
@@ -170,20 +187,15 @@ export default function ApplicationForm() {
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
-          {/* 분기 선택 */}
+          {/* 분기 */}
           <div className="form-group">
-            <label className="form-label">신청 분기 <span className="required">*</span></label>
-            <select
-              className={`form-input ${errors.quarter ? 'input-error' : ''}`}
+            <label className="form-label">신청 분기</label>
+            <input
+              type="text"
+              className="form-input"
               value={form.quarter}
-              onChange={(e) => updateField('quarter', e.target.value)}
-            >
-              <option value="">분기를 선택해주세요</option>
-              {quarters.filter((q) => q.isActive).map((q) => (
-                <option key={q.id} value={q.name}>{q.name}</option>
-              ))}
-            </select>
-            {errors.quarter && <span className="error-text">{errors.quarter}</span>}
+              readOnly
+            />
           </div>
 
           {/* 신청구분 */}

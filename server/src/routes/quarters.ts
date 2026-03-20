@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import { getDatabase } from '../db/database';
 import { getAllQuarters, createQuarter } from '../db/quarters';
 
 const router = Router();
@@ -7,7 +8,14 @@ const router = Router();
 // GET /api/quarters - 분기 목록
 router.get('/', (_req: Request, res: Response) => {
   try {
-    const quarters = getAllQuarters();
+    const quarters = getAllQuarters().map((q) => ({
+      id: q.id,
+      name: q.name,
+      startDate: q.start_date,
+      endDate: q.end_date,
+      isActive: !!q.is_active,
+      createdAt: q.created_at,
+    }));
     res.json(quarters);
   } catch (error) {
     console.error('Failed to fetch quarters:', error);
@@ -44,6 +52,28 @@ router.post('/', quarterValidation, (req: Request, res: Response) => {
     }
     console.error('Failed to create quarter:', error);
     res.status(500).json({ error: '분기 생성에 실패했습니다.' });
+  }
+});
+
+// PATCH /api/quarters/:id/activate - 분기 활성화
+router.patch('/:id/activate', (req: Request, res: Response) => {
+  try {
+    const db = getDatabase();
+    const { id } = req.params;
+
+    const quarter = db.prepare('SELECT * FROM quarters WHERE id = ?').get(id);
+    if (!quarter) {
+      return res.status(404).json({ error: '분기를 찾을 수 없습니다.' });
+    }
+
+    db.prepare('UPDATE quarters SET is_active = 0 WHERE is_active = 1').run();
+    db.prepare('UPDATE quarters SET is_active = 1 WHERE id = ?').run(id);
+
+    const updated = db.prepare('SELECT * FROM quarters WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Failed to activate quarter:', error);
+    res.status(500).json({ error: '분기 활성화에 실패했습니다.' });
   }
 });
 
